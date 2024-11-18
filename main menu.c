@@ -44,7 +44,10 @@ int main()
 	
 	// Check for input:
 	while(active)
-	{	
+	{
+        // Clear the screen entirely. 
+        tb_clear();
+
 		// Main menu graphics:
 		tb_print(center_x-14, quarter_d_y-1, TB_DEFAULT, TB_DEFAULT, "|||||||||||||");
 		tb_print(center_x-14, quarter_d_y, TB_DEFAULT, TB_DEFAULT, "| MAIN MENU |");	

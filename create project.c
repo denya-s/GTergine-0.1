@@ -7,7 +7,7 @@ int create_project(int center_x, int center_y, char* name)
 	// Generate a string for specifiying the project location, name and file extension.
 	char finalname[256];
 	
-	 snprintf(finalname, sizeof(finalname), "../projects/%s.c", name);
+	snprintf(finalname, sizeof(finalname), "../projects/%s.c", name);
 
 	// Create the project file.
   	FILE *ProjectFile = fopen(finalname, "w"); 
