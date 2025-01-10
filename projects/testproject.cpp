@@ -2,38 +2,55 @@
 #include "local/termbox2.h"
 #include <iostream>
 #include <vector>
+#include <string>
 #include <algorithm> // For different vector functions (e.g. resize() or fill()).
 
 // GLOBAL VARIABLES:
 
 // The id helps with further logic of owning pixels on the screen, 
 // Will be incremented and owned by each new sprite.
-int g_sprite_id = 0;
+int g_sprite_id = 1;
 
 // Helps identify items.
 // Will be incremented and owned by each new item.
-int g_item_id=0;
+int g_item_id=1;
 
 // Helps identify abilities in ability slots.
 // Will be incremented and owned by each new ability in slot.
-int g_ability_id=0;
+int g_ability_id=1;
 
 // GLOBAL VARIABLES END.
 
 // GENERAL STRUCTS:
 
+struct Position{ //May be used to represent an entity's spawn position or current position.
+    int x;
+    int y;
+};
+
 // GENERAL FUNCTIONS:
 
-void MakeSpriteVector2D (int sh, int sw, std::vector<std::vector<char>>& sprite, int& sprite_id){ 
-    sprite_id = g_sprite_id; // Assign the object a new sprite id and increment the global sprite id for further use.
-    g_sprite_id++; 
-    sprite.resize(sh); // The sprite that will be loaded from another image file.
+void GT_CreateHBSpriteVector2D(int sh, int sw, std::vector<std::vector<char>>& HB_sprite, int& sprite_id){ 
+  sprite_id = g_sprite_id; // Assign the object a new sprite id and increment the global sprite id for further use.
+  g_sprite_id++; 
+  HB_sprite.resize(sh); // Make the amount of 2d vector rows be equal to sprite_height.
+
+  // Allocate space for each column in each row:
+  for (int i = 0; i < sh; i++){
+    HB_sprite[i].resize(sw, ('0'+sprite_id)); // Initialize each row with `sw` columns, all set to the sprite_id converted to char.
+  }
+}
+
+void GT_InitSpriteVector2D(int sh, int sw, std::vector<std::vector<char>>& sprite, int& sprite_id){
+    sprite.resize(sh); // Make the amount of 2d vector rows be equal to sprite_height.
 
     // Allocate space for each column in each row:
     for (int i = 0; i < sh; i++){
-        sprite[i].resize(sw, ('0'+sprite_id)); // Initialize each row with `sw` columns, all set to the sprite_id converted to char.
+      sprite[i].resize(sw, ('0'+sprite_id)); // Initialize each row with `sw` columns, all set to the sprite_id converted to char.
     }
 }
+
+// GT_LoadSprite();
 
 void MakeInvSpriteVector2D(int inv_sh, int inv_sw, std::vector<std::vector<char>>& inventory_sprite, int& item_id) {
     item_id =g_item_id+1; // Make a unique item id for the created item.
@@ -78,11 +95,14 @@ class Object{
         int sprite_width;
         int sprite_height; 
     public:
+        std::vector<std::vector<char>> HB_sprite; // Hitbox sprite.
         int sprite_id = 0; 
-        int position[1][1] = {0};
-         
+
+        Position position={0,0};
+        Position spawn_pos={0,0};
+        
         Object(std::string n, int sh, int sw) : name(n), sprite_height(sh), sprite_width(sw){
-            MakeSpriteVector2D(sh, sw, sprite, sprite_id);
+            GT_CreateHBSpriteVector2D(sh, sw, HB_sprite, sprite_id);
         }
 };
 
@@ -90,6 +110,7 @@ class Object{
 class Projectile { 
     private: 
         std::string name; 
+        std::vector<std::vector<char>> HB_sprite; 
         std::vector<std::vector<char>> sprite; 
         int sprite_width;
         int sprite_height;
@@ -97,46 +118,54 @@ class Projectile {
         std::string type; // Type of projectile (for example: arrow, bullet). 
         std::string trajectory; // How the projectile travels.  
         int sprite_id = 0; // each sprite has to have its own unique id.
-        int position[1][1] = {0};
         int speed = 0; // How fast the projectile travels. 
         int lifetime = 0; // How long the projectile can fly until it despawns.
         bool hit_state = 0; // Tracks if the projectile hit a target.
-         
+        
+        Position position={0,0};
+        Position spawn_pos={0,0};
+ 
         Projectile(std::string n, int sh, int sw) : name(n), sprite_height(sh), sprite_width(sw){
-            MakeSpriteVector2D(sh, sw, sprite, sprite_id);
+            GT_CreateHBSpriteVector2D(sh, sw, HB_sprite, sprite_id);
         }
 };
 
 // Physical platforms that player(s), enemies and/or NPCs can stand on, for example, bridges, collapsible bridges, etc.
 class Platform{
-    private:
-        std::string name; 
-        std::vector<std::vector<char>> sprite; 
-        int sprite_width;
-        int sprite_height; 
-    public: 
-        int sprite_id = 0; // each sprite has to have its own unique id. 
-        int position[1][1] = {0};
- 
-        Platform(std::string n, int sh, int sw) : name(n), sprite_height(sh), sprite_width(sw){
-            MakeSpriteVector2D(sh, sw, sprite, sprite_id);
-        }
+  private:
+    std::string name; 
+    std::vector<std::vector<char>> sprite; 
+    int sprite_width;
+    int sprite_height; 
+  public: 
+    std::vector<std::vector<char>> HB_sprite; 
+    int sprite_id = 0; // each sprite has to have its own unique id. 
+
+    Position position={0,0};
+    Position spawn_pos={0,0};
+
+    Platform(std::string n, int sh, int sw) : name(n), sprite_height(sh), sprite_width(sw){
+      GT_CreateHBSpriteVector2D(sh, sw, HB_sprite, sprite_id);
+    }
 };
 
 // Interactive props like: doors, levers switches.
 class Prop {
-    private:
-        std::string name;
-        std::vector<std::vector<char>> sprite;  
-        int sprite_width;
-        int sprite_height; 
-    public: 
-        int sprite_id = 0; // each sprite has to have its own unique id. 
-        int position[1][1] = {0};
+  private:
+    std::string name;     
+    std::vector<std::vector<char>> HB_sprite;  
+    std::vector<std::vector<char>> sprite;  
+    int sprite_width;
+    int sprite_height; 
+  public: 
+    int sprite_id = 0; // each sprite has to have its own unique id. 
+    
+    Position position={0,0};
+    Position spawn_pos={0,0};
 
-        Prop(std::string n, int sh, int sw) : name(n), sprite_height(sh), sprite_width(sw){
-            MakeSpriteVector2D(sh, sw, sprite, sprite_id);
-        }
+    Prop(std::string n, int sh, int sw) : name(n), sprite_height(sh), sprite_width(sw){
+      GT_CreateHBSpriteVector2D(sh, sw, HB_sprite, sprite_id);
+    }
 };
 
 // Dangers or traps like: spikes, firepits, collapsible bridges, etc.
@@ -146,27 +175,29 @@ class Hazard {
 
 // Items the player(s) or other things can interact with.
 class Item {
-    private:
-        std::vector<std::vector<char>> sprite;  
-        int sprite_width;
-        int sprite_height; 
-        int inventory_sprite_width;
-        int inventory_sprite_height;
-    public:
-        std::string name; 
-        int item_id=0; // Each item must have its own item id.
-        std::vector<std::vector<char>> inventory_sprite; // Each item will also have an inventory sprite.
-        int sprite_id = 0; // Each sprite has to have its own unique id.
-        int position[1][1]={0};
-        int spawnpos[1][1]={0};
-        int quantity=0; 
-        bool stackable=0; // Determines if the item is stackable.
-        bool collected_state=0; // Determines the the item is collected or on the floor.
+  private:
+    std::vector<std::vector<char>> sprite;  
+    int sprite_width; 
+    int sprite_height; 
+    int inventory_sprite_width;
+    int inventory_sprite_height;
+  public:
+    std::vector<std::vector<char>> HB_sprite;  
+    std::string name; 
+    int item_id=0; // Each item must have its own item id.
+    std::vector<std::vector<char>> inventory_sprite; // Each item will also have an inventory sprite.
+    int sprite_id = 0; // Each sprite has to have its own unique id.
+    int quantity=0; 
+    bool stackable=0; // Determines if the item is stackable.
+    bool collected_state=0; // Determines the the item is collected or on the floor.
 
-        Item(std::string n, int sh, int sw, int inv_sh, int inv_sw, bool stack, int q) : name(n), sprite_height(sh), sprite_width(sw), inventory_sprite_height(inv_sh), inventory_sprite_width(inv_sw), stackable(stack), quantity(q){
-            MakeSpriteVector2D(sh, sw, sprite, sprite_id);
-            MakeInvSpriteVector2D(inv_sh, inv_sw, inventory_sprite, item_id); 
-        }
+    Position position={0,0};
+    Position spawn_pos={0,0};
+
+    Item(std::string n, int sh, int sw, int inv_sh, int inv_sw, bool stack, int q) : name(n), sprite_height(sh), sprite_width(sw), inventory_sprite_height(inv_sh), inventory_sprite_width(inv_sw), stackable(stack), quantity(q){
+  GT_CreateHBSpriteVector2D(sh, sw, HB_sprite, sprite_id);
+  MakeInvSpriteVector2D(inv_sh, inv_sw, inventory_sprite, item_id); 
+}
 };
 
 // Abilities that the living entities can have.
@@ -314,12 +345,14 @@ class NPC : public HasInventory, public HasAbilities {
     int sprite_width;
     int sprite_height; 
   public:
+    std::vector<std::vector<char>> HB_sprite; // Hitbox sprite.
     int sprite_id = 0; // each sprite has to have its own unique id.
-    int position[1][1] = {0};
-    int spawnpos[1][1] = {0};
     int max_health = 0; // Maximum health.
     int health = 0; // Current health.
     int movespeed = 0;
+
+    Position position={0,0};
+    Position spawn_pos={0,0};
 
     std::string getEntity() const override { return "NPC"; }
     std::string getType() const override { return type; }
@@ -327,7 +360,7 @@ class NPC : public HasInventory, public HasAbilities {
 
     NPC(std::string lname, std::string ltype, int sh, int sw, int inv_slots, int ab_slots) : 
     name(lname), type(ltype), sprite_height(sh), sprite_width(sw), HasInventory(inv_slots), HasAbilities(ab_slots){
-      MakeSpriteVector2D(sh, sw, sprite, sprite_id); 
+      GT_CreateHBSpriteVector2D(sh, sw, HB_sprite, sprite_id); 
     }     
 };
 
@@ -337,24 +370,26 @@ class Enemy : public HasInventory, public HasAbilities {
     std::string name;
     std::string type; // Type of enemy (for example: common, fire, boss).
     std::string state; // Enemy's current state (for example: alive, dead, respawning). 
-    std::vector<std::vector<char>> sprite;  
+    std::vector<std::vector<char>> sprite;
     int sprite_width;
     int sprite_height; 
   public:
+    std::vector<std::vector<char>> HB_sprite; // Hitbox sprite.
     int sprite_id = 0; // each sprite has to have its own unique id.
-    int position[1][1] = {0};
-    int spawnpos[1][1] = {0};
     int max_health = 0; // Maximum health.
     int health = 0; // Current health.
-    int movespeed = 0;
- 
+    int movespeed = 0; 
+
+    Position position={0,0};
+    Position spawn_pos={35,10};
+
     std::string getEntity() const override { return "Enemy"; }
     std::string getType() const override { return type; }
     std::string getName() const override { return name; }
 
     Enemy(std::string lname, std::string ltype, int sh, int sw, int inv_slots, int ab_slots) : 
     name(lname), type(ltype), sprite_height(sh), sprite_width(sw), HasInventory(inv_slots), HasAbilities(ab_slots){
-      MakeSpriteVector2D(sh, sw, sprite, sprite_id); 
+      GT_CreateHBSpriteVector2D(sh, sw, HB_sprite, sprite_id); 
     }
 };
 
@@ -363,16 +398,19 @@ class Player : public HasInventory, public HasAbilities {
   private:
     std::string name;
     std::string type; // Type of player (for example: warrior, archer, mage).
-    std::string state; // Player's current state (for example: alive, dead, respawning). 
+    std::string state; // Player's current state (for example: alive, dead, respawning).  
     std::vector<std::vector<char>> sprite;  
     int sprite_width;
     int sprite_height; 
   public: 
+    std::vector<std::vector<char>> HB_sprite; // Hitbox sprite.
     int sprite_id=0; // each sprite has to have its own unique id.
-    int position[1][1]={0};
-    int max_health=0; // Maximum health.
+    int max_health=0; // Maximum health.    
     int health=0; // Current health.
     int movespeed=0;
+  
+    Position position={0,0};
+    Position spawn_pos={10,10};
  
     std::string getEntity() const override { return "Player"; }
     std::string getType() const override { return type; }
@@ -380,7 +418,7 @@ class Player : public HasInventory, public HasAbilities {
 
     Player(std::string lname, std::string ltype, int sh, int sw, int inv_slots, int ab_slots) : 
     name(lname), type(ltype), sprite_height(sh), sprite_width(sw), HasInventory(inv_slots), HasAbilities(ab_slots){
-      MakeSpriteVector2D(sh, sw, sprite, sprite_id); 
+      GT_CreateHBSpriteVector2D(sh, sw, HB_sprite, sprite_id); 
     }     
 };
 
@@ -394,48 +432,162 @@ void checkAndInstallXdotool() {
     std::cout << "xdotool is already installed.\n";
   }
 }
-
 void resetZoom() {
   // Simulate Ctrl + 0 to reset zoom to normal/default
   system("xdotool key ctrl+0");
   std::cout << "Zoom reset to normal level.\n";
 }
-
-
 void zoomOut(int zoomOutCount) {
   for (int i = 0; i < zoomOutCount; ++i) {
     // Simulate Ctrl + Minus to zoom out
     system("xdotool key ctrl+minus");
   }
   std::cout << "Zoomed out " << zoomOutCount << " times.\n";
+  system("sleep 3");
+}
+void GT_InitHBScreen(int h, int w, std::vector<std::vector<std::string>>& HB_screen){ 
+  HB_screen.resize(h); // Resize the row number to the screen height.
+  for (auto& row : HB_screen) {
+    row.resize(w, "0"); // Resize each row to the screen width, initializing the whole 2D vector array with "0".
+  } 
+}
+void GT_DisplayHBScreen(const std::vector<std::vector<std::string>>& HB_screen){
+  for (size_t i = 0; i < HB_screen.size(); ++i) {
+    for (size_t j = 0; j < HB_screen[i].size(); ++j) {
+      tb_print(0+j, 0+i, TB_GREEN, TB_BLACK, HB_screen[i][j].c_str());
+    }
+  } 
+}
+void GT_InsertHBSprite(const std::vector<std::vector<char>> HB_sprite, std::vector<std::vector<std::string>>& HB_screen, int x_spawn_pos, int y_spawn_pos, int& x_pos, int& y_pos){
+  // For storing relative sprite 0,0 position.
+  int target_x=0;
+  int target_y=0;
+  for(size_t i=0;i<HB_sprite.size();++i){ // Iterate over HB_sprite.
+    for(size_t j=0;j<HB_sprite[i].size();++j){
+      // Calculate target position in HB_screen.
+      target_x=x_spawn_pos + j; // Horizontal position.
+      target_y=y_spawn_pos + i; // Vertical position. 
+      if(target_y >= 0 && target_y < HB_screen.size() && target_x >= 0 && target_x < HB_screen[target_y].size()){ // Check bounds to prevent overwriting out of HB_screen bounds.
+        HB_screen[target_y][target_x] = std::string(1, HB_sprite[i][j]); // Convert char to string.
+      }
+    }
+  }
+  // Make current hitbox sprite positions be equal to the spawn positions.
+  x_pos=x_spawn_pos; 
+  y_pos=y_spawn_pos;
+}
+void GT_DeleteHBSprite(std::vector<std::vector<std::string>>& HB_screen,int sprite_id){
+  for(size_t i=0;i<HB_screen.size();++i){ // Iterate over HB_screen.
+    for(size_t j=0;j<HB_screen[i].size();++j){
+      if(HB_screen[i][j]==std::to_string(sprite_id)){
+        HB_screen[i][j]="0"; // Change every occurence of sprite_id to "0".
+      }
+    }
+  }
+}
+bool GT_CheckHBOwned(const std::vector<std::vector<char>> HB_sprite,std::vector<std::vector<std::string>>& HB_screen,int x_pos,int y_pos,int sprite_id){
+  for(size_t i=0;i<HB_sprite.size();++i){ // Iterate over HB_sprite.
+    for(size_t j=0;j<HB_sprite[i].size();++j){
+      int target_x=x_pos+j; // Horizontal position.
+      int target_y=y_pos+i; // Vertical position.  
+      if(target_y >= 0 && target_y < HB_screen.size() && target_x >= 0 && target_x < HB_screen[target_y].size()){ // Check bounds to prevent checking out of HB_screen bounds.
+        if(HB_screen[target_y][target_x] != "0" && HB_screen[target_y][target_x] != std::to_string(sprite_id)){ // Check if that coordinate is owned by something.
+          return 1; // If it is.
+        }
+      }else{return 1;} // If its trying to go out of bounds.
+    }
+  }
+  return 0; // If it isn't.
+}
+void GT_MoveHBSprite(const std::vector<std::vector<char>> HB_sprite,std::vector<std::vector<std::string>>& HB_screen,int x_pos,int y_pos,int sprite_id){
+  GT_DeleteHBSprite(HB_screen,sprite_id); // Delete the old hitbox sprite from the old position.
+  
+  //Insert the sprite at a new position.
+  for(size_t i=0;i<HB_sprite.size();++i){ // Iterate over HB_sprite.
+    for(size_t j=0;j<HB_sprite[i].size();++j){
+      // Calculate target position in HB_screen.
+      int target_x=x_pos+j; // Horizontal position.
+      int target_y=y_pos+i; // Vertical position.  
+      if(target_y >= 0 && target_y < HB_screen.size() && target_x >= 0 && target_x < HB_screen[target_y].size()){ // Check bounds to prevent overwriting out of HB_screen bounds.
+        HB_screen[target_y][target_x] = std::string(1, HB_sprite[i][j]); // Convert char to string.
+      }
+    }
+  } 
 }
 
 int main(){
+  // Cli screen setup functions:
+  checkAndInstallXdotool(); // Check if xdotool is installed and if not then install it.
+  resetZoom(); // Reset zoom level.
+  zoomOut(3); // Zoom the cli screen out x amount of times.
 
-// Cli screen setup functions:
-checkAndInstallXdotool(); // Check if xdotool is installed and if not then install it.
-resetZoom(); // Reset zoom level.
-zoomOut(3); // Zoom the cli screen out x amount of times.
+  tb_init(); // Initialize Termbox2.
+  // Screen height and width.
+  int screen_width=tb_width();
+  int screen_height=tb_height();
+  // Windows center coords.
+  int center_x=screen_width/2;
+  int center_y=screen_height/2;
+  // Vector to store hitbox screen info.
+  std::vector<std::vector<std::string>> HB_screen;  
+  // Vector to store game screen info.
+  std::vector<std::vector<std::string>> screen;  
 
-tb_init(); // Initialize Termbox2.
-// Screen height and width.
-int width=tb_width();
-int height=tb_height();
-// Windows center coords.
-int center_x=width/2;
-int center_y=height/2;
-// Vector to store screen info.
-std::vector<std::vector<char>> screen;  
-struct tb_event ev;
-tb_print(center_x, center_y, TB_GREEN, TB_BLACK, "Hello World!");
-tb_print(center_x, center_y+1, TB_GREEN, TB_BLACK, "Hello World!");
-tb_print(center_x, center_y+2, TB_GREEN, TB_BLACK, "Hello World!");
-tb_present();
-tb_poll_event(&ev); // Check for an event (input event).  
+  // Initiliase the hitbox screen, set all positions to "0".
+  GT_InitHBScreen(screen_height,screen_width,HB_screen);
 
-tb_shutdown();
+  Player Player_1("Denya","Mage",10,20,20,5);
+  Enemy Enemy_1("Boss","Brain",10,10,10,30);
+  GT_InsertHBSprite(Player_1.HB_sprite,HB_screen,Player_1.spawn_pos.x,Player_1.spawn_pos.y,Player_1.position.x,Player_1.position.y);
+  GT_InsertHBSprite(Enemy_1.HB_sprite,HB_screen,Enemy_1.spawn_pos.x,Enemy_1.spawn_pos.y,Enemy_1.position.x,Enemy_1.position.y);
 
-resetZoom(); // Reset zoom level.
+  bool game=1; // If true then the game is running, if false, then not.
+  struct tb_event input;
+  while(game){
+    // Print out the hitbox screen:
+    GT_DisplayHBScreen(HB_screen);
+    tb_present(); 
+    system("sleep 0.1");
+
+    tb_poll_event(&input); // Check for input.  
+ 
+    switch(input.ch){ //Check input and determine whether where the user wants to go isn't owned by something else.
+      case 'a':
+        if(!GT_CheckHBOwned(Player_1.HB_sprite,HB_screen,Player_1.position.x-1,Player_1.position.y,Player_1.sprite_id)){
+          Player_1.position.x-=1; // Decrement the x coord to move left.
+        }
+        break; 
+      case 'd':
+        if(!GT_CheckHBOwned(Player_1.HB_sprite,HB_screen,Player_1.position.x+1,Player_1.position.y,Player_1.sprite_id)){
+          Player_1.position.x+=1; // Increment the x coord to move left.
+        }
+        break; 
+      case 'w':
+        if(!GT_CheckHBOwned(Player_1.HB_sprite,HB_screen,Player_1.position.x,Player_1.position.y-1,Player_1.sprite_id)){
+          Player_1.position.y-=1; // Decrement the y coord to move up.
+        }
+        break; 
+      case 's':
+        if(!GT_CheckHBOwned(Player_1.HB_sprite,HB_screen,Player_1.position.x,Player_1.position.y+1,Player_1.sprite_id)){
+          Player_1.position.y+=1; // Increment the y coord to move down.
+        }
+        break;
+      case 'p': // Input p to exit.
+        game=0; 
+        break;
+    } 
+      GT_MoveHBSprite(Player_1.HB_sprite,HB_screen,Player_1.position.x,Player_1.position.y,Player_1.sprite_id);
+  } 
+
+  // GT_SpawnSprite(*sprite hb vector*, *sprite vector* ,  *hitbox screen*, *game screen*, *x coord*, *y coord*);
+
+  tb_shutdown();
+
+  resetZoom(); // Reset zoom level.
+
+  std::cout << "Screen width: " << screen_width << "\n";
+  std::cout << "Screen height: " << screen_height << "\n"; 
+
 /*
     Item Sword("Sword",5,3,8,8,0,1);
     Item Arrows("Arrows",5,5,8,8,1,64);
